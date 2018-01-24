@@ -1,5 +1,4 @@
-﻿using System;
-
+﻿
 class GCObject {
 	GCObject next;
 	byte tt;
@@ -10,12 +9,12 @@ class GCObject {
 ** Union of all Lua values
 */
 class Value {
-	GCObject gc;			/* collectable objects */
-	object p;				/* light userdata */
-	int b;					/* booleans */
-	Func<int, lua_State> f; /* light C functions */
-	ulong i;				/* integer numbers */
-	double n;				/* float numbers */
+	GCObject gc;		/* collectable objects */
+	object p;			/* light userdata */
+	int b;				/* booleans */
+	lua_CFunction f;	/* light C functions */
+	ulong i;			/* integer numbers */
+	double n;			/* float numbers */
 }
 
 class TValue {
@@ -68,10 +67,10 @@ class Table {
 	GCObject next;
 	byte tt;
 	byte marked;
-	byte flags;  /* 1<<p means tagmethod(p) is not present */
-	byte lsizenode;  /* log2 of size of 'node' array */
-	uint sizearray;  /* size of 'array' array */
-	TValue array;  /* array part */
+	byte flags;		/* 1<<p means tagmethod(p) is not present */
+	byte lsizenode;	/* log2 of size of 'node' array */
+	uint sizearray; /* size of 'array' array */
+	TValue array;	/* array part */
 	Node node;
 	Node lastfree;  /* any free position is before this position */
 	Table metatable;

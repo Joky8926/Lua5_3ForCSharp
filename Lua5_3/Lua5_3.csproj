@@ -45,6 +45,17 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="src\lauxlib.cs" />
+    <Compile Include="src\ldebug.cs" />
+    <Compile Include="src\ldo.cs" />
+    <Compile Include="src\lfunc.cs" />
+    <Compile Include="src\lgc.cs" />
+    <Compile Include="src\llimits.cs" />
+    <Compile Include="src\lobject.cs" />
+    <Compile Include="src\lstate.cs" />
+    <Compile Include="src\ltm.cs" />
+    <Compile Include="src\lua.cs" />
+    <Compile Include="src\luaconf.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
