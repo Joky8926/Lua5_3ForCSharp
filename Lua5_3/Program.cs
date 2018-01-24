@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 namespace Lua5_3 {
 	class Program {
 		static void Main(string[] args) {
-			Console.WriteLine("test:{0}", GetTimeStamp());
+			byte abc = (350 % 256);
+			Console.WriteLine("test:{0}", abc);
 			Console.Read();
 		}
 

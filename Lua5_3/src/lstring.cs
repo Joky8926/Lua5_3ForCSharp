@@ -6,7 +6,7 @@ class lstring {
 	*/
 	const int LUAI_HASHLIMIT = 5;
 
-	static uint luaS_hash(byte[] str, uint l, uint seed) {
+	public static uint luaS_hash(byte[] str, uint l, uint seed) {
 		uint h = seed ^ l;
 		uint step = (l >> LUAI_HASHLIMIT) + 1;
 		for (; l >= step; l -= step)

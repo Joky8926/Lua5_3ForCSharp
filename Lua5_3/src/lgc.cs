@@ -9,6 +9,18 @@ class lgc {
 
 	public static readonly int WHITEBITS = bit2mask(WHITE0BIT, WHITE1BIT);
 
+	/*
+	** Possible states of the Garbage Collector
+	*/
+	public const int GCSpropagate	= 0;
+	public const int GCSatomic		= 1;
+	public const int GCSswpallgc	= 2;
+	public const int GCSswpfinobj	= 3;
+	public const int GCSswptobefnz	= 4;
+	public const int GCSswpend		= 5;
+	public const int GCScallfin		= 6;
+	public const int GCSpause		= 7;
+
 	public static int bitmask(int b) {
 		return 1 << b;
 	}

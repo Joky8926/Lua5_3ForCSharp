@@ -53,6 +53,7 @@
     <Compile Include="src\llimits.cs" />
     <Compile Include="src\lobject.cs" />
     <Compile Include="src\lstate.cs" />
+    <Compile Include="src\lstring.cs" />
     <Compile Include="src\ltm.cs" />
     <Compile Include="src\lua.cs" />
     <Compile Include="src\luaconf.cs" />

@@ -2,6 +2,13 @@
 using System;
 
 class lstate {
+	/* kinds of Garbage Collection */
+	const int KGC_NORMAL = 0;
+	const int KGC_EMERGENCY = 1;    /* gc was forced by an allocation failure */
+
+	const int LUAI_GCPAUSE = 200;  /* 200% */
+
+	const int LUAI_GCMUL = 200; /* GC runs 'twice the speed' of memory allocation */
 
 	public static lua_State lua_newstate(lua_Alloc f, object ud) {
 		int i;
@@ -20,28 +27,28 @@ class lstate {
 		g.frealloc = f;
 		g.ud = ud;
 		g.mainthread = L;
-		//g->seed = makeseed(L);
-		//g->gcrunning = 0;  /* no GC while building state */
-		//g->GCestimate = 0;
-		//g->strt.size = g->strt.nuse = 0;
-		//g->strt.hash = NULL;
-		//setnilvalue(&g->l_registry);
-		//g->panic = NULL;
-		//g->version = NULL;
-		//g->gcstate = GCSpause;
-		//g->gckind = KGC_NORMAL;
-		//g->allgc = g->finobj = g->tobefnz = g->fixedgc = NULL;
-		//g->sweepgc = NULL;
-		//g->gray = g->grayagain = NULL;
-		//g->weak = g->ephemeron = g->allweak = NULL;
-		//g->twups = NULL;
-		//g->totalbytes = sizeof(LG);
-		//g->GCdebt = 0;
-		//g->gcfinnum = 0;
-		//g->gcpause = LUAI_GCPAUSE;
-		//g->gcstepmul = LUAI_GCMUL;
-		//for (i = 0; i < LUA_NUMTAGS; i++)
-		//	g->mt[i] = NULL;
+		g.seed = makeseed(L);
+		g.gcrunning = 0;  /* no GC while building state */
+		g.GCestimate = 0;
+		g.strt.size = g.strt.nuse = 0;
+		g.strt.hash = null;
+		lobject.setnilvalue(g.l_registry);
+		g.panic = null;
+		g.version = 0/*null*/;
+		g.gcstate = lgc.GCSpause;
+		g.gckind = KGC_NORMAL;
+		g.allgc = g.finobj = g.tobefnz = g.fixedgc = null;
+		g.sweepgc = null;
+		g.gray = g.grayagain = null;
+		g.weak = g.ephemeron = g.allweak = null;
+		g.twups = null;
+		g.totalbytes = 0/*sizeof(LG)*/;
+		g.GCdebt = 0;
+		g.gcfinnum = 0;
+		g.gcpause = LUAI_GCPAUSE;
+		g.gcstepmul = LUAI_GCMUL;
+		for (i = 0; i < lua.LUA_NUMTAGS; i++)
+			g.mt[i] = null;
 		//if (luaD_rawrunprotected(L, f_luaopen, NULL) != LUA_OK) {
 		//	/* memory allocation error: free partial state */
 		//	close_state(L);
@@ -82,6 +89,68 @@ class lstate {
 		TimeSpan ts = DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, 0);
 		return (uint)ts.TotalSeconds;
 	}
+
+	/*
+	** Compute an initial seed as random as possible. Rely on Address Space
+	** Layout Randomization (if present) to increase randomness..
+	*/
+	static void addbuff(byte[] b, ref int p, uint e) {
+		int size = 4;
+		for (int i = size - 1; i >= 0; i--) {
+			b[p + i] = (byte)(e % 256);
+		}
+		p += size;
+	}
+
+	static uint makeseed(lua_State L) {
+		byte[] buff = new byte[4 * 4];
+		uint h = luai_makeseed();
+		int p = 0;
+		Random rd = new Random();
+		addbuff(buff, ref p, (uint)rd.Next());  /* heap variable */
+		addbuff(buff, ref p, (uint)rd.Next());  /* local variable */
+		addbuff(buff, ref p, (uint)rd.Next());  /* global variable */
+		addbuff(buff, ref p, (uint)rd.Next());  /* public function */
+		llimits.lua_assert(p == buff.Length);
+		return lstring.luaS_hash(buff, (uint)p, h);
+	}
+
+	/*
+	** open parts of the state that may cause memory-allocation errors.
+	** ('g->version' != NULL flags that the state was completely build)
+	*/
+	static void f_luaopen(lua_State L, object ud) {
+		global_State g = L.l_G;
+		llimits.UNUSED(ud);
+		//stack_init(L, L);  /* init stack */
+		//init_registry(L, g);
+		//luaS_init(L);
+		//luaT_init(L);
+		//luaX_init(L);
+		//g->gcrunning = 1;  /* allow gc */
+		//g->version = lua_version(NULL);
+		//luai_userstateopen(L);
+	}
+
+	static void stack_init(lua_State L1, lua_State L) {
+		int i;
+		CallInfo ci;
+		/* initialize stack array */
+		//L1->stack = luaM_newvector(L, BASIC_STACK_SIZE, TValue);
+		//L1->stacksize = BASIC_STACK_SIZE;
+		//for (i = 0; i < BASIC_STACK_SIZE; i++)
+		//	setnilvalue(L1->stack + i);  /* erase new stack */
+		//L1->top = L1->stack;
+		//L1->stack_last = L1->stack + L1->stacksize - EXTRA_STACK;
+		///* initialize first ci */
+		//ci = &L1->base_ci;
+		//ci->next = ci->previous = NULL;
+		//ci->callstatus = 0;
+		//ci->func = L1->top;
+		//setnilvalue(L1->top++);  /* 'function' entry for this 'ci' */
+		//ci->top = L1->top + LUA_MINSTACK;
+		//L1->ci = ci;
+	}
 }
 
 /*
@@ -121,37 +190,37 @@ class lua_State {
 class global_State {
 	public lua_Alloc frealloc;															/* function to reallocate memory */
 	public object ud;																	/* auxiliary data to 'frealloc' */
-	int totalbytes;																/* number of bytes currently allocated - GCdebt */
-	int GCdebt;																	/* bytes allocated not yet compensated by the collector */
+	public int totalbytes;																/* number of bytes currently allocated - GCdebt */
+	public int GCdebt;																	/* bytes allocated not yet compensated by the collector */
 	uint GCmemtrav;																/* memory traversed by the GC */
-	uint GCestimate;															/* an estimate of the non-garbage memory in use */
-	stringtable strt;															/* hash table for strings */
-	TValue l_registry;
-	uint seed;																	/* randomized seed for hashes */
+	public uint GCestimate;															/* an estimate of the non-garbage memory in use */
+	public stringtable strt;															/* hash table for strings */
+	public TValue l_registry;
+	public uint seed;																	/* randomized seed for hashes */
 	public byte currentwhite;
-	byte gcstate;																/* state of garbage collector */
-	byte gckind;																/* kind of GC running */
-	byte gcrunning;																/* true if GC is running */
-	GCObject allgc;																/* list of all collectable objects */
-	GCObject[] sweepgc;															/* current position of sweep in list */
-	GCObject finobj;															/* list of collectable objects with finalizers */
-	GCObject gray;																/* list of gray objects */
-	GCObject grayagain;															/* list of objects to be traversed atomically */
-	GCObject weak;																/* list of tables with weak values */
-	GCObject ephemeron;															/* list of ephemeron tables (weak keys) */
-	GCObject allweak;															/* list of all-weak tables */
-	GCObject tobefnz;															/* list of userdata to be GC */
-	GCObject fixedgc;															/* list of objects not to be collected */
-	lua_State twups;															/* list of threads with open upvalues */
-	uint gcfinnum;																/* number of finalizers to call in each GC step */
-	int gcpause;																/* size of pause between successive GCs */
-	int gcstepmul;                                                              /* GC 'granularity' */
-	lua_CFunction panic;														/* to be called in unprotected errors */
+	public byte gcstate;																/* state of garbage collector */
+	public byte gckind;																/* kind of GC running */
+	public byte gcrunning;																/* true if GC is running */
+	public GCObject allgc;																/* list of all collectable objects */
+	public GCObject[] sweepgc;															/* current position of sweep in list */
+	public GCObject finobj;															/* list of collectable objects with finalizers */
+	public GCObject gray;																/* list of gray objects */
+	public GCObject grayagain;															/* list of objects to be traversed atomically */
+	public GCObject weak;																/* list of tables with weak values */
+	public GCObject ephemeron;															/* list of ephemeron tables (weak keys) */
+	public GCObject allweak;															/* list of all-weak tables */
+	public GCObject tobefnz;															/* list of userdata to be GC */
+	public GCObject fixedgc;															/* list of objects not to be collected */
+	public lua_State twups;															/* list of threads with open upvalues */
+	public uint gcfinnum;																/* number of finalizers to call in each GC step */
+	public int gcpause;																/* size of pause between successive GCs */
+	public int gcstepmul;                                                              /* GC 'granularity' */
+	public lua_CFunction panic;														/* to be called in unprotected errors */
 	public lua_State mainthread;
-	double version;																/* pointer to version number */
+	public double version;																/* pointer to version number */
 	TString memerrmsg;															/* memory-error message */
 	TString[] tmname = new TString[(int)TMS.TM_N];								/* array with tag-method names */
-	Table[] mt = new Table[lua.LUA_NUMTAGS];									/* metatables for basic types */
+	public Table[] mt = new Table[lua.LUA_NUMTAGS];									/* metatables for basic types */
 	TString[,] strcache = new TString[llimits.STRCACHE_N, llimits.STRCACHE_M];  /* cache for strings in API */
 }
 

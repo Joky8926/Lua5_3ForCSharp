@@ -7,4 +7,13 @@ class llimits {
 	*/
 	public const int STRCACHE_N = 53;
 	public const int STRCACHE_M = 2;
+
+	public static void lua_assert(bool c) {
+
+	}
+
+	/* macro to avoid warnings about unused variables */
+	public static void UNUSED(object x) {
+
+	}
 }
