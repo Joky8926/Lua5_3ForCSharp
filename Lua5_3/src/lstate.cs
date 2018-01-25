@@ -3,12 +3,17 @@ using System;
 
 class lstate {
 	/* kinds of Garbage Collection */
-	const int KGC_NORMAL = 0;
-	const int KGC_EMERGENCY = 1;    /* gc was forced by an allocation failure */
+	public const int KGC_NORMAL = 0;
+	public const int KGC_EMERGENCY = 1;    /* gc was forced by an allocation failure */
 
 	const int LUAI_GCPAUSE = 200;  /* 200% */
 
 	const int LUAI_GCMUL = 200; /* GC runs 'twice the speed' of memory allocation */
+
+	const int BASIC_STACK_SIZE = (2 * lua.LUA_MINSTACK);
+
+	/* extra stack space to handle TM calls and some other extras */
+	const int EXTRA_STACK = 5;
 
 	public static lua_State lua_newstate(lua_Alloc f, object ud) {
 		int i;
@@ -122,8 +127,8 @@ class lstate {
 	static void f_luaopen(lua_State L, object ud) {
 		global_State g = L.l_G;
 		llimits.UNUSED(ud);
-		//stack_init(L, L);  /* init stack */
-		//init_registry(L, g);
+		stack_init(L, L);  /* init stack */
+		init_registry(L, g);
 		//luaS_init(L);
 		//luaT_init(L);
 		//luaX_init(L);
@@ -136,20 +141,46 @@ class lstate {
 		int i;
 		CallInfo ci;
 		/* initialize stack array */
-		//L1->stack = luaM_newvector(L, BASIC_STACK_SIZE, TValue);
-		//L1->stacksize = BASIC_STACK_SIZE;
-		//for (i = 0; i < BASIC_STACK_SIZE; i++)
-		//	setnilvalue(L1->stack + i);  /* erase new stack */
-		//L1->top = L1->stack;
-		//L1->stack_last = L1->stack + L1->stacksize - EXTRA_STACK;
-		///* initialize first ci */
-		//ci = &L1->base_ci;
-		//ci->next = ci->previous = NULL;
-		//ci->callstatus = 0;
-		//ci->func = L1->top;
-		//setnilvalue(L1->top++);  /* 'function' entry for this 'ci' */
-		//ci->top = L1->top + LUA_MINSTACK;
-		//L1->ci = ci;
+		L1.stack = new TValue[BASIC_STACK_SIZE];
+		L1.stacksize = BASIC_STACK_SIZE;
+		for (i = 0; i < BASIC_STACK_SIZE; i++) {
+			L1.stack[i] = new TValue();
+			lobject.setnilvalue(L1.stack[i]);  /* erase new stack */
+		}
+		L1.top_index = 0;
+		L1.stack_last_index = L1.stacksize - EXTRA_STACK;
+		/* initialize first ci */
+		ci = L1.base_ci;
+		ci.next = ci.previous = null;
+		ci.callstatus = 0;
+		ci.func = L1.top;
+		lobject.setnilvalue(L1.stack[++L1.top_index]);  /* 'function' entry for this 'ci' */
+		ci.top = L1.stack[L1.top_index + lua.LUA_MINSTACK];
+		L1.ci = ci;
+	}
+
+
+	/* macro to convert a Lua object into a GCObject */
+	public static GCObject obj2gco(IGCObject v) {
+		// novariant((v)->tt) < LUA_TDEADKEY
+		return v.gc;
+	}
+
+	/*
+	** Create registry table and its predefined values
+	*/
+	static void init_registry(lua_State L, global_State g) {
+		TValue temp;
+		/* create registry */
+		Table registry = luaH_new(L);
+		sethvalue(L, &g->l_registry, registry);
+		luaH_resize(L, registry, LUA_RIDX_LAST, 0);
+		/* registry[LUA_RIDX_MAINTHREAD] = L */
+		setthvalue(L, &temp, L);  /* temp = L */
+		luaH_setint(L, registry, LUA_RIDX_MAINTHREAD, &temp);
+		/* registry[LUA_RIDX_GLOBALS] = table of globals */
+		sethvalue(L, &temp, luaH_new(L));  /* temp = new table (global table) */
+		luaH_setint(L, registry, LUA_RIDX_GLOBALS, &temp);
 	}
 }
 
@@ -162,17 +193,19 @@ class lua_State {
 	public byte marked;
 	public ushort nci;				/* number of items in 'ci' list */
 	public byte status;
-	TValue top;             /* first free slot in the stack */
+	//public TValue top;             /* first free slot in the stack */
+	public int top_index;             /* first free slot in the stack */
 	public global_State l_G;
 	public CallInfo ci;			/* call info for current function */
 	uint oldpc;				/* last pc traced */
-	TValue stack_last;		/* last free slot in the stack */
-	public TValue stack;			/* stack base */
+	//public TValue stack_last;       /* last free slot in the stack */
+	public int stack_last_index;       /* last free slot in the stack */
+	public TValue[] stack;			/* stack base */
 	public UpVal openupval;		/* list of open upvalues in this stack */
 	GCObject gclist;
 	public lua_State twups;		/* list of threads with open upvalues */
 	public lua_longjmp errorJmp;	/* current error recover point */
-	CallInfo base_ci;		/* CallInfo for first level (C calling Lua) */
+	public CallInfo base_ci;		/* CallInfo for first level (C calling Lua) */
 	public volatile lua_Hook hook;
 	public int errfunc;			/* current error handling function (stack index) */
 	public int stacksize;
@@ -182,6 +215,18 @@ class lua_State {
 	public ushort nCcalls;			/* number of nested C calls */
 	public int hookmask;
 	public byte allowhook;
+
+	public TValue top {
+		get {
+			return stack[top_index];
+		}
+	}
+
+	public TValue stack_last {
+		get {
+			return stack[stack_last_index];
+		}
+	}
 };
 
 /*
@@ -234,13 +279,13 @@ class global_State {
 ** function can be called with the correct top.
 */
 class CallInfo {
-	TValue func;				/* function index in the stack */
-	TValue top;					/* top for this function */
-	CallInfo previous, next;	/* dynamic call link */
+	public TValue func;				/* function index in the stack */
+	public TValue top;					/* top for this function */
+	public CallInfo previous, next;	/* dynamic call link */
 	_union u;
 	int extra;
 	short nresults;				/* expected number of results from this function */
-	ushort callstatus;
+	public ushort callstatus;
 
 	class _union {
 		_struct1 l;
@@ -274,3 +319,16 @@ class LG {
 	public LX l;
 	public global_State g;
 }
+
+/*
+** Union of all collectable objects (only for conversions)
+*/
+class GCUnion {
+	public GCObject gc;  /* common header */
+	TString ts;
+	Udata u;
+	Closure cl;
+	Table h;
+	Proto p;
+	lua_State th;  /* thread */
+};

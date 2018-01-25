@@ -28,6 +28,10 @@ class lua {
 	public const int LUA_ERRMEM		= 4;
 	public const int LUA_ERRGCMM	= 5;
 	public const int LUA_ERRERR		= 6;
+
+	/* minimum Lua stack available to a C function */
+	public const int LUA_MINSTACK = 20;
+
 }
 
 class lua_Debug {

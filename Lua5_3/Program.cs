@@ -8,6 +8,7 @@ namespace Lua5_3 {
 	class Program {
 		static void Main(string[] args) {
 			byte abc = (350 % 256);
+			StringBuilder str;
 			Console.WriteLine("test:{0}", abc);
 			Console.Read();
 		}
