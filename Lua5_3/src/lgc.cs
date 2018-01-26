@@ -4,13 +4,12 @@ class GCObject : IGCObject {
 	public byte tt;
 	byte _marked;
 
-	public GCObject() {
-		global_State* g = G(L);
-		GCObject* o = cast(GCObject *, luaM_newobject(L, novariant(tt), sz));
-		o->marked = luaC_white(g);
-		o->tt = tt;
-		o->next = g->allgc;
-		g->allgc = o;
+	public GCObject(lua_State L, int tt) {
+		global_State g = L.l_G;
+		_marked = (byte)lgc.luaC_white(g);
+		this.tt = (byte)tt;
+		next = g.allgc;
+		g.allgc = this;
 	}
 
 	public byte marked {

@@ -5,7 +5,7 @@ class ldebug {
 		L.hookcount = L.basehookcount;
 	}
 
-	static void luaG_runerror(lua_State L, string fmt, params object[] argp) {
+	public static void luaG_runerror(lua_State L, string fmt, params object[] argp) {
 		CallInfo ci = L.ci;
 		string msg;
 	//va_list argp;

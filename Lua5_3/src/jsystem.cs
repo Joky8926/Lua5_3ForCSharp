@@ -12,4 +12,15 @@ class jsystem {
 		}
 		return ret;
 	}
+
+	public static char strpbrk(string cs, string ct) {
+		for (int i = 0; i < cs.Length; i++) {
+			for (int j = 0; j < ct.Length; j++) {
+				if (cs[i] == ct[j]) {
+					return cs[i];
+				}
+			}
+		}
+		return '\0';
+	}
 }

@@ -32,6 +32,11 @@ class lua {
 	/* minimum Lua stack available to a C function */
 	public const int LUA_MINSTACK = 20;
 
+	/* predefined values in the registry */
+	public const int LUA_RIDX_MAINTHREAD = 1;
+	public const int LUA_RIDX_GLOBALS = 2;
+	public const int LUA_RIDX_LAST = LUA_RIDX_GLOBALS;
+
 }
 
 class lua_Debug {

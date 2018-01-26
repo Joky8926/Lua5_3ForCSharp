@@ -172,9 +172,9 @@ class lstate {
 	static void init_registry(lua_State L, global_State g) {
 		TValue temp;
 		/* create registry */
-		Table registry = luaH_new(L);
-		sethvalue(L, &g->l_registry, registry);
-		luaH_resize(L, registry, LUA_RIDX_LAST, 0);
+		Table registry = ltable.luaH_new(L);
+		lobject.sethvalue(L, g.l_registry, registry);
+		luaH_resize(L, registry, lua.LUA_RIDX_LAST, 0);
 		/* registry[LUA_RIDX_MAINTHREAD] = L */
 		setthvalue(L, &temp, L);  /* temp = L */
 		luaH_setint(L, registry, LUA_RIDX_MAINTHREAD, &temp);
@@ -332,3 +332,9 @@ class GCUnion {
 	Proto p;
 	lua_State th;  /* thread */
 };
+
+class stringtable {
+	public TString[] hash;
+	public int nuse;  /* number of elements */
+	public int size;
+}
