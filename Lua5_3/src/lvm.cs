@@ -11,8 +11,8 @@ class lvm {
 	** mode == 1: takes the floor of the number
 	** mode == 2: takes the ceil of the number
 	*/
-	static bool luaV_tointeger(TValue obj, ref long p, int mode) {
-		TValue v;
+	public static bool luaV_tointeger(TValue obj, ref long p, int mode) {
+		TValue v = new TValue();
 	again:
 		if (lobject.ttisfloat(obj)) {
 			double n = lobject.fltvalue(obj);
@@ -27,10 +27,10 @@ class lvm {
 		} else if (lobject.ttisinteger(obj)) {
 			p = lobject.ivalue(obj);
 			return true;
-		} else if (cvt2num(obj) && luaO_str2num(lobject.svalue(obj), &v) == vslen(obj) + 1) {
-    obj = &v;
-    goto again;  /* convert result from 'luaO_str2num' to an integer */
-  }
-  return false;  /* conversion failed */
-}
+		} else if (cvt2num(obj) && lobject.luaO_str2num(lobject.svalue(obj), v) == lobject.vslen(obj) + 1) {
+			obj = v;	// TODO: copy
+			goto again;  /* convert result from 'luaO_str2num' to an integer */
+		}
+		return false;  /* conversion failed */
+	}
 }

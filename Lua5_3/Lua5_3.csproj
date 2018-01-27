@@ -48,6 +48,7 @@
     <Compile Include="src\jInterface.cs" />
     <Compile Include="src\jsystem.cs" />
     <Compile Include="src\lauxlib.cs" />
+    <Compile Include="src\lctype.cs" />
     <Compile Include="src\ldebug.cs" />
     <Compile Include="src\ldo.cs" />
     <Compile Include="src\lfunc.cs" />
@@ -61,6 +62,7 @@
     <Compile Include="src\ltm.cs" />
     <Compile Include="src\lua.cs" />
     <Compile Include="src\luaconf.cs" />
+    <Compile Include="src\lvm.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -155,16 +155,16 @@ class ltable {
 	*/
 	TValue luaH_newkey(lua_State L, Table t, TValue key) {
 		Node mp;
-		TValue aux;
+		TValue aux = new TValue();
 		if (lobject.ttisnil(key))
 			ldebug.luaG_runerror(L, "table index is nil");
 		else if (lobject.ttisfloat(key)) {
-			long k;
-			if (luaV_tointeger(key, &k, 0)) {  /* does index fit in an integer? */
-      setivalue(&aux, k);
-	key = &aux;  /* insert it as an integer */
-    }
-    else if (luai_numisnan(fltvalue(key)))
+			long k = 0;
+			if (lvm.luaV_tointeger(key, ref k, 0)) {  /* does index fit in an integer? */
+				lobject.setivalue(aux, k);
+				// TODO: copy
+				key = aux;  /* insert it as an integer */
+			} else if (luai_numisnan(fltvalue(key)))
       luaG_runerror(L, "table index is NaN");
   }
   mp = mainposition(t, key);

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 class lobject {
 	/*
@@ -6,6 +7,10 @@ class lobject {
 	*/
 	public const int LUA_TPROTO = lua.LUA_NUMTAGS;      /* function prototypes */
 	public const int LUA_TDEADKEY = lua.LUA_NUMTAGS + 1;  /* removed keys in tables */
+
+	/* Variant tags for strings */
+	const int LUA_TSHRSTR = lua.LUA_TSTRING | (0 << 4);  /* short strings */
+	const int LUA_TLNGSTR = lua.LUA_TSTRING | (1 << 4);  /* long strings */
 
 	/* Variant tags for numbers */
 	const int LUA_TNUMFLT = lua.LUA_TNUMBER | (0 << 4); /* float numbers */
@@ -20,6 +25,10 @@ class lobject {
 	public static readonly TValue luaO_nilobject = luaO_nilobject_;
 
 	static readonly TValue luaO_nilobject_ = NILCONSTANT();
+
+	/* maximum number of significant digits to read (to avoid overflows
+	   even with single floats) */
+	const int MAXSIGDIG = 30;
 
 	const ulong MAXBY10 = luaconf.LUA_MAXINTEGER / 10;
 	const int MAXLASTD = (int)(luaconf.LUA_MAXINTEGER % 10);
@@ -130,6 +139,11 @@ class lobject {
 		o.tt_ = t;
 	}
 
+	static void setfltvalue(TValue obj, double x) {
+		val_(obj).n = x;
+		settt_(obj, LUA_TNUMFLT);
+	}
+
 	public static void setivalue(TValue obj, long x) {
 		val_(obj).i = (x);
 		settt_(obj, LUA_TNUMINT);
@@ -169,8 +183,18 @@ class lobject {
 	}
 
 	/* get the actual string (array of bytes) from a Lua value */
-	public static void svalue(TValue o) {
-		getstr(tsvalue(o));
+	public static string svalue(TValue o) {
+		return getstr(tsvalue(o));
+	}
+
+	/* get string length from 'TString *s' */
+	static uint tsslen(TString s) {
+		return s.tt == LUA_TSHRSTR ? s.shrlen : s.u.lnglen;
+	}
+
+	/* get string length from 'TValue *o' */
+	public static uint vslen(TValue o) {
+		return tsslen(tsvalue(o));
 	}
 
 	/*
@@ -221,7 +245,7 @@ class lobject {
 	** convert an hexadecimal numeric string to a number, following
 	** C99 specification for 'strtod'
 	*/
-	static double lua_strx2number(string s, char endptr) {
+	static double lua_strx2number(string s, ref int endptr) {
 		int dot = luaconf.lua_getlocaledecpoint();
 		double r = 0.0;  /* result (accumulator) */
 		int sigdig = 0;  /* number of significant digits */
@@ -230,7 +254,7 @@ class lobject {
 		int neg;  /* 1 if number is negative */
 		bool hasdot = false;  /* true after seen a dot */
 		int strIndex = 0;
-		endptr = s[strIndex];  /* nothing is valid yet */
+		endptr = strIndex;  /* nothing is valid yet */
 		while (strIndex < s.Length && lctype.lisspace((byte)s[strIndex]))
 			strIndex++;  /* skip initial spaces */
 		neg = isneg(s[strIndex], ref strIndex);  /* check signal */
@@ -245,80 +269,78 @@ class lobject {
 			} else if (lctype.lisxdigit((byte)s[strIndex])) {
 				if (sigdig == 0 && s[strIndex] == '0')  /* non-significant digit (zero)? */
 					nosigdig++;
-      else if (++sigdig <= MAXSIGDIG)  /* can read it without overflow? */
-          r = (r* cast_num(16.0)) + luaO_hexavalue(*s);
-      else e++; /* too many digits; ignore, but still count for exponent */
-      if (hasdot) e--;  /* decimal digit? correct exponent */
-    }
-    else break;  /* neither a dot nor a digit */
-  }
-  if (nosigdig + sigdig == 0)  /* no digits? */
-    return 0.0;  /* invalid format */
-  * endptr = cast(char *, s);  /* valid up to here */
-e *= 4;  /* each digit multiplies/divides value by 2^4 */
-  if (* s == 'p' || * s == 'P') {  /* exponent part? */
-    int exp1 = 0;  /* exponent value */
-int neg1;  /* exponent signal */
-s++;  /* skip 'p' */
-    neg1 = isneg(&s);  /* signal */
-    if (!lisdigit(cast_uchar(*s)))
-      return 0.0;  /* invalid; must have at least one digit */
-    while (lisdigit(cast_uchar(*s)))  /* read exponent */
-      exp1 = exp1* 10 + *(s++) - '0';
-    if (neg1) exp1 = -exp1;
-    e += exp1;
+				else if (++sigdig <= MAXSIGDIG)  /* can read it without overflow? */
+					r = r* 16.0 + luaO_hexavalue((byte)s[strIndex]);
+				else
+					e++; /* too many digits; ignore, but still count for exponent */
+				if (hasdot)
+					e--;  /* decimal digit? correct exponent */
+			} else
+				break;  /* neither a dot nor a digit */
+		}
+		if (nosigdig + sigdig == 0)  /* no digits? */
+			return 0.0;  /* invalid format */
+		endptr = strIndex;  /* valid up to here */
+		e *= 4;  /* each digit multiplies/divides value by 2^4 */
+		if (s[strIndex] == 'p' || s[strIndex] == 'P') {  /* exponent part? */
+			int exp1 = 0;  /* exponent value */
+			int neg1 = 0;  /* exponent signal */
+			strIndex++;  /* skip 'p' */
+			neg1 = isneg(s[strIndex], ref strIndex);  /* signal */
+			if (!lctype.lisdigit((byte)s[strIndex]))
+				return 0.0;  /* invalid; must have at least one digit */
+			while (strIndex < s.Length && lctype.lisdigit((byte)s[strIndex])) {  /* read exponent */
+				exp1 = exp1 * 10 + s[strIndex] - '0';
+				strIndex++;
+			}
+			if (neg1 != 0)
+				exp1 = -exp1;
+			e += exp1;
+			endptr = strIndex;  /* valid up to here */
+		}
+		if (neg != 0)
+			r = -r;
+		return r * (1 << e);
+	}
 
-	* endptr = cast(char *, s);  /* valid up to here */
-  }
-  if (neg) r = -r;
-  return l_mathop(ldexp)(r, e);
-}
+	static int l_str2dloc (string s, ref double result, int mode) {
+		int endptr = 0;
+		if (mode == 'x')
+			result = lua_strx2number(s, ref endptr);    /* try to convert */
+		else {
+			result = Convert.ToDouble(s);
+		}
+		if (endptr == 0)
+			return 0;  /* nothing recognized? */
+		while (endptr < s.Length && lctype.lisspace((byte)s[endptr]))
+			endptr++;  /* skip trailing spaces */
+		return endptr == s.Length ? endptr : 0;  /* OK if no trailing characters */
+	}
 
-	static char l_str2dloc (string s, ref double result, int mode) {
-		char endptr;
-		result = (mode == 'x') ? lua_strx2number(s, &endptr)  /* try to convert */
-                          : lua_str2number(s, &endptr);
-  if (endptr == s) return NULL;  /* nothing recognized? */
-  while (lisspace(cast_uchar(*endptr))) endptr++;  /* skip trailing spaces */
-  return (*endptr == '\0') ? endptr : NULL;  /* OK if no trailing characters */
-}
-
-/*
-** Convert string 's' to a Lua number (put in 'result'). Return NULL
-** on fail or the address of the ending '\0' on success.
-** 'pmode' points to (and 'mode' contains) special things in the string:
-** - 'x'/'X' means an hexadecimal numeral
-** - 'n'/'N' means 'inf' or 'nan' (which should be rejected)
-** - '.' just optimizes the search for the common case (nothing special)
-** This function accepts both the current locale or a dot as the radix
-** mark. If the convertion fails, it may mean number has a dot but
-** locale accepts something else. In that case, the code copies 's'
-** to a buffer (because 's' is read-only), changes the dot to the
-** current locale radix mark, and tries to convert again.
-*/
-static bool l_str2d (string s, ref double result) {
-		char endptr;
+	/*
+	** Convert string 's' to a Lua number (put in 'result'). Return NULL
+	** on fail or the address of the ending '\0' on success.
+	** 'pmode' points to (and 'mode' contains) special things in the string:
+	** - 'x'/'X' means an hexadecimal numeral
+	** - 'n'/'N' means 'inf' or 'nan' (which should be rejected)
+	** - '.' just optimizes the search for the common case (nothing special)
+	** This function accepts both the current locale or a dot as the radix
+	** mark. If the convertion fails, it may mean number has a dot but
+	** locale accepts something else. In that case, the code copies 's'
+	** to a buffer (because 's' is read-only), changes the dot to the
+	** current locale radix mark, and tries to convert again.
+	*/
+	static int l_str2d (string s, ref double result) {
+		int endptr;
 		char pmode = jsystem.strpbrk(s, ".xXnN");
 		int mode = pmode != '\0' ? lctype.ltolower((byte)pmode) : 0;
 		if (mode == 'n')  /* reject 'inf' and 'nan' */
-			return false;
-		endptr = l_str2dloc(s, result, mode);  /* try to convert */
-  if (endptr == NULL) {  /* failed? may be a different locale */
-    char buff[L_MAXLENNUM + 1];
-	const char* pdot = strchr(s, '.');
-    if (strlen(s) > L_MAXLENNUM || pdot == NULL)
-      return NULL;  /* string too long or no dot; fail */
+			return 0;
+		endptr = l_str2dloc(s, ref result, mode);  /* try to convert */
+		return endptr;
+	}
 
-	strcpy(buff, s);  /* copy string to buffer */
-	buff[pdot - s] = lua_getlocaledecpoint();  /* correct decimal point */
-	endptr = l_str2dloc(buff, result, mode);  /* try again */
-    if (endptr != NULL)
-      endptr = s + (endptr - buff);  /* make relative to 's' */
-  }
-  return endptr;
-}
-
-	static bool l_str2int (string s, ref long result) {
+	static int l_str2int (string s, ref long result) {
 		ulong a = 0;
 		bool empty = true;
 		int neg;
@@ -336,7 +358,7 @@ static bool l_str2d (string s, ref double result) {
 			for (; strIndex < s.Length && lctype.lisdigit((byte)s[strIndex]); strIndex++) {
 				int d = s[strIndex] - '0';
 				if (a >= MAXBY10 && (a > MAXBY10 || d > MAXLASTD + neg))  /* overflow? */
-					return false;  /* do not accept it (as integer) */
+					return 0;  /* do not accept it (as integer) */
 				a = a * 10 + (ulong)d;
 				empty = false;
 			}
@@ -344,27 +366,25 @@ static bool l_str2d (string s, ref double result) {
 		while (strIndex < s.Length && lctype.lisspace((byte)s[strIndex]))
 			strIndex++;  /* skip trailing spaces */
 		if (empty || strIndex < s.Length)
-			return false;  /* something wrong in the numeral */
+			return 0;  /* something wrong in the numeral */
 		else {
 			result = (neg != 0) ? -(long)a : (long)a;
-		return true;
+		return strIndex;
 	}
 }
 
-	uint luaO_str2num(string s, TValue o) {
+	public static uint luaO_str2num(string s, TValue o) {
 		long i = 0;
-		double n;
-		bool e;
-		if (e = l_str2int(s, ref i)) {  /* try as an integer */
+		double n = 0;
+		int e;
+		if ((e = l_str2int(s, ref i)) != 0) {  /* try as an integer */
 			setivalue(o, i);
-		} else if ((e = l_str2d(s, &n)) != NULL) {  /* else try as a float */
-
-	setfltvalue(o, n);
-  }
-  else
-    return 0;  /* conversion failed */
-  return (e - s) + 1;  /* success; return string size */
-}
+		} else if ((e = l_str2d(s, ref n)) != 0) {  /* else try as a float */
+			setfltvalue(o, n);
+		} else
+			return 0;  /* conversion failed */
+		return (uint)e + 1;  /* success; return string size */
+	}
 
 	static void pushstr(lua_State L, StringBuilder str, uint l) {
 		setsvalue2s(L, L.top, luaS_newlstr(L, str, l));
@@ -497,7 +517,7 @@ class TString : GCObject {
 	}
 	
 	public class _union {
-		uint lnglen;	/* length for long strings */
+		public uint lnglen;	/* length for long strings */
 		public TString hnext;  /* linked list for hash table */
 	}
 }
