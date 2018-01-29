@@ -8,13 +8,25 @@ class lobject {
 	public const int LUA_TPROTO = lua.LUA_NUMTAGS;      /* function prototypes */
 	public const int LUA_TDEADKEY = lua.LUA_NUMTAGS + 1;  /* removed keys in tables */
 
+	/*
+	** LUA_TFUNCTION variants:
+	** 0 - Lua function
+	** 1 - light C function
+	** 2 - regular C function (closure)
+	*/
+
+	/* Variant tags for functions */
+	public const int LUA_TLCL = lua.LUA_TFUNCTION | (0 << 4);  /* Lua closure */
+	public const int LUA_TLCF = lua.LUA_TFUNCTION | (1 << 4);  /* light C function */
+	public const int LUA_TCCL = lua.LUA_TFUNCTION | (2 << 4);  /* C closure */
+
 	/* Variant tags for strings */
-	const int LUA_TSHRSTR = lua.LUA_TSTRING | (0 << 4);  /* short strings */
-	const int LUA_TLNGSTR = lua.LUA_TSTRING | (1 << 4);  /* long strings */
+	public const int LUA_TSHRSTR = lua.LUA_TSTRING | (0 << 4);  /* short strings */
+	public const int LUA_TLNGSTR = lua.LUA_TSTRING | (1 << 4);  /* long strings */
 
 	/* Variant tags for numbers */
-	const int LUA_TNUMFLT = lua.LUA_TNUMBER | (0 << 4); /* float numbers */
-	const int LUA_TNUMINT = lua.LUA_TNUMBER | (1 << 4);  /* integer numbers */
+	public const int LUA_TNUMFLT = lua.LUA_TNUMBER | (0 << 4); /* float numbers */
+	public const int LUA_TNUMINT = lua.LUA_TNUMBER | (1 << 4);  /* integer numbers */
 
 	/* Bit mark for collectable types */
 	const int BIT_ISCOLLECTABLE = 1 << 6;
@@ -69,12 +81,12 @@ class lobject {
 	}
 
 	/* type tag of a TValue (bits 0-3 for tags + variant bits 4-5) */
-	static int ttype(TValue o) {
+	public static int ttype(TValue o) {
 		return rttype(o) & 0x3F;
 	}
 
 	/* type tag of a TValue with no variants (bits 0-3) */
-	static int ttnov(TValue o) {
+	public static int ttnov(TValue o) {
 		return novariant(rttype(o));
 	}
 
@@ -100,7 +112,15 @@ class lobject {
 	}
 
 	public static bool ttisstring(TValue o) {
-		return checktype((o), lua.LUA_TSTRING);
+		return checktype(o, lua.LUA_TSTRING);
+	}
+
+	public static bool ttisshrstring(TValue o) {
+		return checktag(o, ctb(LUA_TSHRSTR));
+	}
+
+	public static bool ttisdeadkey(TValue o) {
+		return checktag(o, LUA_TDEADKEY);
 	}
 
 	/* Macros to access values */
@@ -112,13 +132,31 @@ class lobject {
 		return val_(o).n;
 	}
 
-	static GCObject gcvalue(TValue o) {
+	public static GCObject gcvalue(TValue o) {
 		//iscollectable(o);
 		return val_(o).gc;
 	}
 
-	static TString tsvalue(TValue o) {
+	public static object pvalue(TValue o) {
+		return val_(o).p;
+	}
+
+	public static TString tsvalue(TValue o) {
 		return val_(o)._str;
+	}
+
+	public static Udata uvalue(TValue o) {
+		return val_(o)._u;
+	}
+
+	public static lua_CFunction fvalue(TValue o) {
+		return val_(o).f;
+	}
+
+//#define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))
+
+	public static int bvalue(TValue o) {
+		return val_(o).b;
 	}
 
 	static int iscollectable(TValue o) {
@@ -177,7 +215,7 @@ class lobject {
 	** Get the actual string (array of bytes) from a 'TString'.
 	** (Access to 'extra' ensures that value is really a 'TString'.)
 	*/
-	static string getstr(TString ts) {
+	public static string getstr(TString ts) {
 		// check_exp(sizeof((ts)->extra), cast(char *, (ts)) + sizeof(UTString))
 		return null;
 	}
@@ -484,12 +522,13 @@ class lobject {
 */
 class Value {   // union
 	public GCObject gc;		/* collectable objects */
-	object p;			/* light userdata */
-	int b;				/* booleans */
-	lua_CFunction f;	/* light C functions */
+	public object p;			/* light userdata */
+	public int b;				/* booleans */
+	public lua_CFunction f;	/* light C functions */
 	public long i;			/* integer numbers */
 	public double n;            /* float numbers */
 	public TString _str;
+	public Udata _u;
 }
 
 class TValue {
@@ -507,9 +546,9 @@ class TValue {
 ** (aligned according to 'UTString'; see next).
 */
 class TString : GCObject {
-	byte extra;		/* reserved words for short strings; "has hash" for longs */
+	public byte extra;		/* reserved words for short strings; "has hash" for longs */
 	public byte shrlen;	/* length for short strings */
-	uint hash;
+	public uint hash;
 	public _union u;
 
 	public TString(lua_State L) : base(L, 0) {
@@ -531,7 +570,7 @@ class Udata {
 	byte tt;
 	byte marked;
 	byte ttuv_;     /* user value's tag */
-	Table metatable;
+	public Table metatable;
 	uint len;       /* number of bytes */
 	Value user_;    /* user value */
 }

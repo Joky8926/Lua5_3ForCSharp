@@ -7,6 +7,24 @@ class lstring {
 	*/
 	const int LUAI_HASHLIMIT = 5;
 
+	/*
+	** equality for short strings, which are always internalized
+	*/
+	public static bool eqshrstr(TString a, TString b) {
+		return a == b;
+	}
+
+	/*
+	** equality for long strings
+	*/
+	public static bool luaS_eqlngstr(TString a, TString b) {
+		uint len = a.u.lnglen;
+		llimits.lua_assert(a.tt == lobject.LUA_TLNGSTR && b.tt == lobject.LUA_TLNGSTR);
+		return a == b;	// ||  /* same instance or... */
+			//((len == b.u.lnglen) &&  /* equal length and ... */
+			//(memcmp(getstr(a), getstr(b), len) == 0));  /* equal contents */
+	}
+
 	public static uint luaS_hash(byte[] str, uint l, uint seed) {
 		uint h = seed ^ l;
 		uint step = (l >> LUAI_HASHLIMIT) + 1;
@@ -23,22 +41,51 @@ class lstring {
 		return h;
 	}
 
+	public static uint luaS_hash(string str, uint l, uint seed) {
+		uint h = seed ^ l;
+		uint step = (l >> LUAI_HASHLIMIT) + 1;
+		for (; l >= step; l -= step)
+			h ^= (h << 5) + (h >> 2) + str[(int)l - 1];
+		return h;
+	}
+
+	public static uint luaS_hashlongstr(TString ts) {
+		llimits.lua_assert(ts.tt == lobject.LUA_TLNGSTR);
+		if (ts.extra == 0) {  /* no hash? */
+			ts.hash = luaS_hash(lobject.getstr(ts), ts.u.lnglen, ts.hash);
+			ts.extra = 1;  /* now it has its hash */
+		}
+		return ts.hash;
+	}
+
 	/*
-	** new string (with explicit length)
+	** resizes the string table
 	*/
-	static TString luaS_newlstr(lua_State L, StringBuilder str, uint l) {
-		if (l <= llimits.LUAI_MAXSHORTLEN)  /* short string? */
-			return internshrstr(L, str, l);
-		// else {
-		//   TString* ts;
-		//   if (l >= (MAX_SIZE - sizeof(TString))/sizeof(char))
-
-		//  luaM_toobig(L);
-		//ts = luaS_createlngstrobj(L, l);
-
-		//memcpy(getstr(ts), str, l* sizeof(char));
-		//   return ts;
-		// }
+	static void luaS_resize(lua_State L, int newsize) {
+		int i;
+		stringtable tb = L.l_G.strt;
+		if (newsize > tb.size) {  /* grow table if needed */
+			luaM_reallocvector(L, tb->hash, tb->size, newsize, TString *);
+			//for (i = tb->size; i < newsize; i++)
+			//	tb->hash[i] = NULL;
+		}
+		//for (i = 0; i < tb->size; i++) {  /* rehash */
+		//	TString* p = tb->hash[i];
+		//	tb->hash[i] = NULL;
+		//	while (p) {  /* for each node in the list */
+		//		TString* hnext = p->u.hnext;  /* save next */
+		//		unsigned int h = lmod(p->hash, newsize);  /* new position */
+		//		p->u.hnext = tb->hash[h];  /* chain it */
+		//		tb->hash[h] = p;
+		//		p = hnext;
+		//	}
+		//}
+		//if (newsize < tb->size) {  /* shrink table if needed */
+		//						   /* vanishing slice should be empty */
+		//	lua_assert(tb->hash[newsize] == NULL && tb->hash[tb->size - 1] == NULL);
+		//	luaM_reallocvector(L, tb->hash, tb->size, newsize, TString *);
+		//}
+		//tb->size = newsize;
 	}
 
 	/*
@@ -72,32 +119,21 @@ class lstring {
 	}
 
 	/*
-	** resizes the string table
+	** new string (with explicit length)
 	*/
-	static void luaS_resize(lua_State L, int newsize) {
-		int i;
-		stringtable tb = L.l_G.strt;
-		if (newsize > tb.size) {  /* grow table if needed */
-			luaM_reallocvector(L, tb->hash, tb->size, newsize, TString *);
-			//for (i = tb->size; i < newsize; i++)
-			//	tb->hash[i] = NULL;
-		}
-		//for (i = 0; i < tb->size; i++) {  /* rehash */
-		//	TString* p = tb->hash[i];
-		//	tb->hash[i] = NULL;
-		//	while (p) {  /* for each node in the list */
-		//		TString* hnext = p->u.hnext;  /* save next */
-		//		unsigned int h = lmod(p->hash, newsize);  /* new position */
-		//		p->u.hnext = tb->hash[h];  /* chain it */
-		//		tb->hash[h] = p;
-		//		p = hnext;
-		//	}
-		//}
-		//if (newsize < tb->size) {  /* shrink table if needed */
-		//						   /* vanishing slice should be empty */
-		//	lua_assert(tb->hash[newsize] == NULL && tb->hash[tb->size - 1] == NULL);
-		//	luaM_reallocvector(L, tb->hash, tb->size, newsize, TString *);
-		//}
-		//tb->size = newsize;
+	static TString luaS_newlstr(lua_State L, StringBuilder str, uint l) {
+		if (l <= llimits.LUAI_MAXSHORTLEN)  /* short string? */
+			return internshrstr(L, str, l);
+		// else {
+		//   TString* ts;
+		//   if (l >= (MAX_SIZE - sizeof(TString))/sizeof(char))
+
+		//  luaM_toobig(L);
+		//ts = luaS_createlngstrobj(L, l);
+
+		//memcpy(getstr(ts), str, l* sizeof(char));
+		//   return ts;
+		// }
 	}
+
 }

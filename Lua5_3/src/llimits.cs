@@ -18,6 +18,15 @@ class llimits {
 
 	public const int MAX_INT = int.MaxValue;  /* maximum value of an int */
 
+	/*
+	** conversion of pointer to unsigned integer:
+	** this is for hashing only; there is no problem if the integer
+	** cannot hold the whole pointer value
+	*/
+	public static uint point2uint(object p) {
+		return (uint)p.GetHashCode();
+	}
+
 	public static void lua_assert(bool c) {
 
 	}
@@ -30,7 +39,15 @@ class llimits {
 	public static void lua_longassert(bool c) {
 
 	}
-	
+
+	public static bool luai_numeq(double a, double b) {
+		return a == b;
+	}
+
+	public static bool luai_numisnan(double a) {
+		return double.IsNaN(a);
+	}
+
 	//public static void check_exp(object c, e) { (e)
 
 	//}

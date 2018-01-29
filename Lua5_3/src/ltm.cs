@@ -1,4 +1,32 @@
-﻿/*
+﻿
+class ltm {
+
+
+	static TValue gfasttm(global_State g, Table et, TMS e) {
+		return et == null ? null : (et.flags & (1u << (int)e)) != 0 ? null : luaT_gettm(et, e, g.tmname[(int)e]);
+	}
+
+
+	public static TValue fasttm(lua_State l, Table et, TMS e) {
+		return gfasttm(l.l_G, et, e);
+	}
+
+	/*
+	** function to be used with macro "fasttm": optimized for absence of
+	** tag methods
+	*/
+	static TValue luaT_gettm (Table events, TMS event_, TString ename) {
+		TValue tm = ltable.luaH_getshortstr(events, ename);
+		llimits.lua_assert(event_ <= TMS.TM_EQ);
+		if (lobject.ttisnil(tm)) {  /* no tag method? */
+			events.flags |= (byte)(1u << (int)event_);  /* cache this fact */
+			return null;
+		} else
+			return tm;
+	}
+}
+
+/*
 * WARNING: if you change the order of this enumeration,
 * grep "ORDER TM" and "ORDER OP"
 */

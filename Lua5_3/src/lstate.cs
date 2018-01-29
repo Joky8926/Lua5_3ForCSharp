@@ -264,7 +264,7 @@ class global_State {
 	public lua_State mainthread;
 	public double version;																/* pointer to version number */
 	TString memerrmsg;															/* memory-error message */
-	TString[] tmname = new TString[(int)TMS.TM_N];								/* array with tag-method names */
+	public TString[] tmname = new TString[(int)TMS.TM_N];								/* array with tag-method names */
 	public Table[] mt = new Table[lua.LUA_NUMTAGS];									/* metatables for basic types */
 	TString[,] strcache = new TString[llimits.STRCACHE_N, llimits.STRCACHE_M];  /* cache for strings in API */
 }
