@@ -81,7 +81,7 @@ class lvm {
 				return lstring.eqshrstr(lobject.tsvalue(t1), lobject.tsvalue(t2));
 			case lobject.LUA_TLNGSTR:
 				return lstring.luaS_eqlngstr(lobject.tsvalue(t1), lobject.tsvalue(t2));
-			case lua.LUA_TUSERDATA: {
+			case lua.LUA_TUSERDATA:
 				if (lobject.uvalue(t1) == lobject.uvalue(t2))
 					return true;
 				else if (L == null)
@@ -90,21 +90,21 @@ class lvm {
 				if (tm == null)
 					tm = ltm.fasttm(L, lobject.uvalue(t2).metatable, TMS.TM_EQ);
 				break;  /* will try TM */
-			}
-			case lua.LUA_TTABLE: {
-				if (lobject.hvalue(t1) == lobject.hvalue(t2)) return 1;
-      else if (L == NULL) return 0;
-      tm = fasttm(L, hvalue(t1)->metatable, TM_EQ);
-      if (tm == NULL)
-        tm = fasttm(L, hvalue(t2)->metatable, TM_EQ);
-      break;  /* will try TM */
-    }
-    default:
-      return gcvalue(t1) == gcvalue(t2);
-  }
-  if (tm == NULL)  /* no TM? */
-    return 0;  /* objects are different */
-  luaT_callTM(L, tm, t1, t2, L->top, 1);  /* call TM */
+			case lua.LUA_TTABLE:
+				if (lobject.hvalue(t1) == lobject.hvalue(t2))
+					return true;
+				else if (L == null)
+					return false;
+				tm = ltm.fasttm(L, lobject.hvalue(t1).metatable, TMS.TM_EQ);
+				if (tm == null)
+					tm = ltm.fasttm(L, lobject.hvalue(t2).metatable, TMS.TM_EQ);
+				break;  /* will try TM */
+			default:
+				return lobject.gcvalue(t1) == lobject.gcvalue(t2);
+		}
+		if (tm == null)  /* no TM? */
+			return false;  /* objects are different */
+		luaT_callTM(L, tm, t1, t2, L.top, 1);  /* call TM */
   return !l_isfalse(L->top);
 }
 

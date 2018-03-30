@@ -153,7 +153,9 @@ class lobject {
 		return val_(o).f;
 	}
 
-//#define hvalue(o)	check_exp(ttistable(o), gco2t(val_(o).gc))
+	public static Table hvalue(TValue o) {
+		return val_(o)._h;
+	}
 
 	public static int bvalue(TValue o) {
 		return val_(o).b;
@@ -529,6 +531,7 @@ class Value {   // union
 	public double n;            /* float numbers */
 	public TString _str;
 	public Udata _u;
+	public Table _h;
 }
 
 class TValue {

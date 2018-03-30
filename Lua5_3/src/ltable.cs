@@ -9,7 +9,7 @@ class Table : GCObject {
 	//public Node lastfree;  /* any free position is before this position */
 	private int _node_index;
 	private int _lastfree_index;
-	Table metatable;
+	public Table metatable;
 	GCObject gclist;
 
 	public Table(lua_State L) : base(L, lua.LUA_TTABLE) {

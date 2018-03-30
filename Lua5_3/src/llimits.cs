@@ -1,12 +1,12 @@
 ﻿
 class llimits {
+	public const int MAX_INT = int.MaxValue;  /* maximum value of an int */
+
 	/*
-	** Size of cache for strings in the API. 'N' is the number of
-	** sets (better be a prime) and "M" is the size of each set (M == 1
-	** makes a direct cache.)
+	** maximum depth for nested C calls and syntactical nested non-terminals
+	** in a program. (Value must fit in an unsigned short int.)
 	*/
-	public const int STRCACHE_N = 53;
-	public const int STRCACHE_M = 2;
+	public const int LUAI_MAXCCALLS = 200;
 
 	/*
 	** Maximum length for short strings, that is, strings that are
@@ -16,7 +16,13 @@ class llimits {
 	*/
 	public const int LUAI_MAXSHORTLEN = 40;
 
-	public const int MAX_INT = int.MaxValue;  /* maximum value of an int */
+	/*
+	** Size of cache for strings in the API. 'N' is the number of
+	** sets (better be a prime) and "M" is the size of each set (M == 1
+	** makes a direct cache.)
+	*/
+	public const int STRCACHE_N = 53;
+	public const int STRCACHE_M = 2;
 
 	/*
 	** conversion of pointer to unsigned integer:

@@ -24,6 +24,28 @@ class ltm {
 		} else
 			return tm;
 	}
+
+	static void luaT_callTM(lua_State L, TValue f, TValue p1, TValue p2, TValue p3, bool hasres) {
+		TValue result = p3;
+		TValue func = L.stack[L.top_index] = f;    /* push function (assume EXTRA_STACK) */
+		L.stack[L.top_index + 1] = p1; /* 1st argument */
+		L.stack[L.top_index + 2] = p2; /* 2nd argument */
+		L.top_index += 3;
+		if (!hasres)  /* no result? 'p3' is third argument */
+			L.stack[L.top_index++] = p3;    /* 3rd argument */
+		/* metamethod may yield only when called from Lua code */
+		if (lstate.isLua(L.ci))
+    luaD_call(L, func, hasres);
+  else
+
+	luaD_callnoyield(L, func, hasres);
+  if (hasres) {  /* if has result, move it to its place */
+    p3 = restorestack(L, result);
+
+	setobjs2s(L, p3, --L->top);
+}
+}
+
 }
 
 /*

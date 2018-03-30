@@ -2,18 +2,40 @@
 using System;
 
 class lstate {
+	/* extra stack space to handle TM calls and some other extras */
+	const int EXTRA_STACK = 5;
+
+	const int BASIC_STACK_SIZE = 2 * lua.LUA_MINSTACK;
+
 	/* kinds of Garbage Collection */
 	public const int KGC_NORMAL = 0;
 	public const int KGC_EMERGENCY = 1;    /* gc was forced by an allocation failure */
+
+	/*
+	** Bits in CallInfo status
+	*/
+	const ushort CIST_OAH = 1 << 0;  /* original value of 'allowhook' */
+	const ushort CIST_LUA = 1 << 1;  /* call is running a Lua function */
+	const ushort CIST_HOOKED = 1 << 2;  /* call is running a debug hook */
+	const ushort CIST_FRESH = 1 << 3;  /* call is running on a fresh invocation of luaV_execute */
+	const ushort CIST_YPCALL = 1 << 4;  /* call is a yieldable protected call */
+	const ushort CIST_TAIL = 1 << 5;  /* call was tail called */
+	const ushort CIST_HOOKYIELD = 1 << 6;  /* last hook called yielded */
+	const ushort CIST_LEQ = 1 << 7;  /* using __lt for __le */
+	const ushort CIST_FIN = 1 << 8;  /* call is running a finalizer */
 
 	const int LUAI_GCPAUSE = 200;  /* 200% */
 
 	const int LUAI_GCMUL = 200; /* GC runs 'twice the speed' of memory allocation */
 
-	const int BASIC_STACK_SIZE = (2 * lua.LUA_MINSTACK);
+	public static bool isLua(CallInfo ci) {
+		return (ci.callstatus & CIST_LUA) != 0;
+	}
 
-	/* extra stack space to handle TM calls and some other extras */
-	const int EXTRA_STACK = 5;
+	/* assume that CIST_OAH has offset 0 and that 'v' is strictly 0/1 */
+#define setoah(st,v)	((st) = ((st) & ~CIST_OAH) | (v))
+#define getoah(st)	((st) & CIST_OAH)
+
 
 	public static lua_State lua_newstate(lua_Alloc f, object ud) {
 		int i;

@@ -19,7 +19,21 @@ class ldo {
 		L.errorJmp = lj.previous;  /* restore old error handler */
 		L.nCcalls = oldnCcalls;
 		return lj.status;
-}
+	}
+
+	/*
+	** Call a function (C or Lua). The function to be called is at *func.
+	** The arguments are on the stack, right after the function.
+	** When returns, all the results are on the stack, starting at the original
+	** function position.
+	*/
+	void luaD_call(lua_State L, TValue func, int nResults) {
+		if (++L.nCcalls >= llimits.LUAI_MAXCCALLS)
+			stackerror(L);
+		if (!luaD_precall(L, func, nResults))  /* is a Lua function? */
+			luaV_execute(L);  /* call it */
+		L->nCcalls--;
+	}
 
 	/* ISO C handling with long jumps */
 	//#define LUAI_THROW(L,c)		longjmp((c)->b, 1)
